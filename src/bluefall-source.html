@@ -65,6 +65,10 @@
   .notice canvas.pix { margin: 0 auto; }
   .notice canvas.pix + canvas.pix { margin-top: 8px; }
   .pix.neon { animation: pop 0.9s steps(9) forwards, huecycle 0.36s steps(3) infinite; }
+  canvas.pix.rough { filter: url(#rough); }
+  .pix.rough.neon { animation: pop 0.9s steps(9) forwards, huerough 0.5s steps(3) infinite; }
+  .notice .pix.rough.neon { animation: huerough 0.6s steps(3) infinite; }
+  @keyframes huerough { 0% { filter: url(#rough) hue-rotate(0deg); } 33% { filter: url(#rough) hue-rotate(60deg); } 66% { filter: url(#rough) hue-rotate(-60deg); } }
   .notice .pix.neon { animation: huecycle 0.5s steps(3) infinite; }
   @keyframes huecycle { 0% { filter: hue-rotate(0deg); } 33% { filter: hue-rotate(120deg); } 66% { filter: hue-rotate(240deg); } }
   body.pop-top .popups { top: 13%; } body.pop-top .notices { top: 20%; }
@@ -1600,17 +1604,42 @@
     resize();
   }
   // ---------- pop-up settings (shared by Endless and Levels) ----------
-  const POPOK = { show: ['all', 'big', 'off'], size: ['s', 'm', 'l'], pixel: ['fine', 'chunky'], pos: ['top', 'mid', 'low'], color: ['neon', 'gold', 'white', 'level'] };
+  const POPOK = { style: ['brush', 'pixel'], show: ['all', 'big', 'off'], size: ['s', 'm', 'l'], pixel: ['fine', 'chunky'], pos: ['top', 'mid', 'low'], color: ['neon', 'gold', 'white', 'level'] };
   const popCfg = (() => {
     let v = {}; try { v = JSON.parse(store.get('bluefall-popups', '{}')) || {}; } catch (e) {}
-    const d = { show: 'all', size: 'm', pixel: 'chunky', pos: 'mid', color: 'neon' }, out = {};
+    const d = { style: 'brush', show: 'all', size: 'm', pixel: 'fine', pos: 'mid', color: 'neon' }, out = {};
     for (const k in d) out[k] = POPOK[k].includes(v[k]) ? v[k] : d[k];
     return out;
   })();
   function savePop() { store.set('bluefall-popups', JSON.stringify(popCfg)); applyPopPos(); }
   function applyPopPos() { document.body.classList.toggle('pop-top', popCfg.pos === 'top'); document.body.classList.toggle('pop-low', popCfg.pos === 'low'); }
   // draws text in the 8px pixel font onto a tiny canvas; CSS scales it up so every pixel shows
+  // brush style: hand-painted lettering like the menu titles, optionally pixelated
+  function brushText(text, big) {
+    const fine = popCfg.pixel === 'fine';
+    const base = fine ? 30 : 15;
+    const scale = ({ s: 0.7, m: 1, l: 1.35 })[popCfg.size] * (big ? 1.7 : 1) * (fine ? 1 : 2);
+    const cv = document.createElement('canvas'), g = cv.getContext('2d');
+    const font = `${base}px "Permanent Marker", Impact, sans-serif`;
+    g.font = font;
+    const pad = Math.ceil(base * 0.5), slant = 0.14;
+    const w = Math.ceil(g.measureText(text).width * 1.12 + base * slant + pad * 2), h = Math.ceil(base * 1.5 + pad);
+    cv.width = w; cv.height = h;
+    const main = popCfg.color === 'gold' ? '#ffd23f' : popCfg.color === 'white' ? '#ffffff' : popCfg.color === 'level' ? THEMES[themeKey].glow : (big ? '#e4d2ff' : '#c8a0ff');
+    g.setTransform(1.12, 0, -slant, 1, pad + base * slant, 0);         // stretch wide and slant, like the titles
+    g.font = font; g.textBaseline = 'top'; g.lineJoin = 'round';
+    const y = pad * 0.4, u = base / 15;
+    g.fillStyle = '#2a0650'; g.fillText(text, 4 * u, y + 5 * u);       // deep shadow
+    g.fillStyle = '#6a2ab0'; g.fillText(text, 2 * u, y + 2.5 * u);     // purple shadow
+    g.strokeStyle = '#4a1080'; g.lineWidth = Math.max(2, base / 7); g.strokeText(text, 0, y);
+    g.globalAlpha = 0.7; g.fillStyle = '#ff3fd1'; g.fillText(text, -1.5 * u, y); g.fillStyle = '#33f6ff'; g.fillText(text, 1.5 * u, y); g.globalAlpha = 1;
+    g.fillStyle = main; g.fillText(text, 0, y);
+    cv.className = 'pix rough' + (popCfg.color === 'neon' ? ' neon' : '');
+    cv.style.width = Math.round(w * scale) + 'px'; cv.style.height = Math.round(h * scale) + 'px';
+    return cv;
+  }
   function pixText(text, big) {
+    if (popCfg.style === 'brush') return brushText(text, big);
     const fine = popCfg.pixel === 'fine';
     const base = fine ? 16 : 8;                                   // font size on the canvas
     const scale = ({ s: 1, m: 1.5, l: 2 })[popCfg.size] * (big ? 2 : 1) * (fine ? 1 : 2);
@@ -2689,8 +2718,9 @@
   MENUS.music = { el: 'musicRows', desc: 'musicDesc', rows: ['loadAll', 'musicsrc'].concat(SLOTS.map(sl => 'slot_' + sl), ['clearAll', 'musicBack']), sel: 0 };
   MENUS.endless.rows.splice(MENUS.endless.rows.indexOf('back'), 0, 'music');
   // pop-up settings screen
-  const popName = { all: 'ALL', big: 'BIG ALERTS ONLY', off: 'OFF', s: 'SMALL', m: 'MEDIUM', l: 'LARGE', fine: 'FINE', chunky: 'CHUNKY', top: 'TOP', mid: 'MIDDLE', low: 'LOW', neon: 'NEON', gold: 'GOLD', white: 'WHITE', level: "LEVEL'S COLOUR" };
+  const popName = { brush: 'BRUSH', pixel: 'PIXEL', all: 'ALL', big: 'BIG ALERTS ONLY', off: 'OFF', s: 'SMALL', m: 'MEDIUM', l: 'LARGE', fine: 'FINE', chunky: 'CHUNKY', top: 'TOP', mid: 'MIDDLE', low: 'LOW', neon: 'NEON', gold: 'GOLD', white: 'WHITE', level: "LEVEL'S COLOUR" };
   const popOpt = (k, label, desc) => ({ label, list: () => POPOK[k], get: () => popCfg[k], set: v => { popCfg[k] = v; savePop(); }, name: v => popName[v], desc });
+  OPT.popStyle = popOpt('style', 'STYLE', v => v === 'brush' ? 'Hand-painted brush lettering, like the menu titles.' : 'Blocky pixel lettering.');
   OPT.popShow = popOpt('show', 'SHOW', v => ({ all: 'Score pop-ups and big alerts.', big: 'Only big alerts (new high score, level clear, combos).', off: 'No pop-ups at all.' })[v]);
   OPT.popSize = popOpt('size', 'SIZE', () => 'How big the pop-ups are.');
   OPT.popPixel = popOpt('pixel', 'PIXELS', v => v === 'chunky' ? 'Big blocky pixels.' : 'Smaller, sharper pixels.');
@@ -2700,7 +2730,7 @@
   ACTIONS.popTest = { label: 'PREVIEW', desc: () => 'Shows sample pop-ups with these settings.', run: () => { popup('CLOSE +45  X3'); setTimeout(() => popup('BOOST +75  X4'), 250); setTimeout(() => notice('NEW HIGH SCORE', 'keep it rolling'), 450); } };
   ACTIONS.popBack = { label: 'BACK', desc: () => '', run: () => closePopSet() };
   ACTIONS.popups = { label: 'POP-UPS', desc: () => 'Change how in-run pop-ups look.', run: () => openPopSet() };
-  MENUS.popset = { el: 'popsetRows', desc: 'popsetDesc', rows: ['popShow', 'popSize', 'popPixel', 'popPos', 'popColor', 'popTest', 'popBack'], sel: 0 };
+  MENUS.popset = { el: 'popsetRows', desc: 'popsetDesc', rows: ['popStyle', 'popShow', 'popSize', 'popPixel', 'popPos', 'popColor', 'popTest', 'popBack'], sel: 0 };
   MENUS.endless.rows.splice(MENUS.endless.rows.indexOf('music'), 0, 'popups');
   MENUS.lvset.rows.splice(MENUS.lvset.rows.indexOf('tapes'), 0, 'popups');
   function openPopSet() {
@@ -2716,7 +2746,7 @@
     else openEndless();
   }
   applyPopPos();
-  try { document.fonts && document.fonts.load('16px "Press Start 2P"'); } catch (e) {}
+  try { document.fonts && document.fonts.load('16px "Press Start 2P"'); document.fonts && document.fonts.load('30px "Permanent Marker"'); } catch (e) {}
   MENUS.lvset.rows.splice(MENUS.lvset.rows.indexOf('tapes'), 0, 'music');
   function openMusic(from) {
     musicBack = from;
