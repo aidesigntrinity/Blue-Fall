@@ -1,7 +1,7 @@
 <title>Bluefall</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Rubik+Dirt&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Permanent+Marker&display=swap">
 <style>
   /* Layout: full-bleed WebGL slope, HUD strip on top, full-screen VHS-neon menus (tilted pixel title, cycling option rows, footer hints). */
   :root {
@@ -150,13 +150,14 @@
   #sceneBg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; image-rendering: pixelated; pointer-events: none; }
   body.scene-on #startScreen, body.scene-on #levelScreen, body.scene-on #introScreen { background: linear-gradient(180deg, rgba(8, 2, 20, 0.05), rgba(8, 2, 20, 0.15) 55%, rgba(8, 2, 20, 0.55)); }
   body.scene-on #startScreen .sun, body.scene-on #levelScreen .burst, body.scene-on #introScreen .tracking { display: none; }
-  .brush { font-family: 'Rubik Dirt', 'Impact', 'Arial Black', sans-serif; font-weight: 400; color: #caa4ff; letter-spacing: -0.01em; word-spacing: 0.3em; line-height: 0.95;
-    text-shadow: -3px 0 rgba(255, 63, 209, 0.85), 3px 0 rgba(51, 246, 255, 0.75), 0 5px 0 #3a0a6a, 0 9px 0 #1c0436, 0 14px 26px rgba(0, 0, 0, 0.6);
+  .brush { font-family: 'Permanent Marker', 'Impact', 'Arial Black', sans-serif; font-weight: 400; color: #c8a0ff; letter-spacing: 0.01em; word-spacing: 0.3em; line-height: 0.95; filter: url(#rough); -webkit-text-stroke: 2px #4a1080; transform: scaleX(1.18) skewX(-6deg); transform-origin: left center;
+    text-shadow: -3px 0 rgba(255, 63, 209, 0.7), 3px 0 rgba(51, 246, 255, 0.55), 2px 4px 0 #6a2ab0, 4px 8px 0 #2a0650, 0 14px 26px rgba(0, 0, 0, 0.7);
     animation: sway 3.4s ease-in-out infinite; transform-origin: 50% 60%; }
   h1.brush.vhs-title { font-size: clamp(54px, 13vw, 118px); }
   #introTitle.brush { font-size: clamp(40px, 10vw, 92px); }
-  .card-title.brush { font-size: clamp(22px, 3.6vw, 34px); animation-duration: 4.2s; }
-  .lv.on .lv-name.brush { font-family: 'Rubik Dirt', 'Impact', sans-serif; font-size: clamp(24px, 4.2vw, 40px); }
+  .card-title.brush { font-size: clamp(22px, 3.4vw, 32px); animation-duration: 4.2s; transform: skewX(-6deg); }
+  .lv-name.brush { transform: scaleX(1.08) skewX(-6deg); display: inline-block; }
+  .lv.on .lv-name.brush { font-family: 'Permanent Marker', 'Impact', sans-serif; font-size: clamp(24px, 4.2vw, 40px); }
   .scene-tag { font-family: var(--pixel); font-size: clamp(11px, 2.2vw, 16px); color: var(--sun); letter-spacing: 0.06em;
     text-shadow: 2px 2px 0 #3a0a6a, 0 0 10px rgba(255, 210, 63, 0.55); animation: drift 2.6s ease-in-out infinite; }
   @keyframes sway { 0%, 100% { rotate: -3.5deg; translate: -16px 0; } 50% { rotate: 2.5deg; translate: 16px 0; } }
@@ -286,6 +287,7 @@
 
 <div id="stage" aria-label="Game view"></div>
 <canvas id="sceneBg" width="480" height="270" hidden aria-hidden="true"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="rough" x="-5%" y="-10%" width="110%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <div class="crt" id="crt" hidden></div>
 
 <div class="hud">
@@ -3720,104 +3722,265 @@
 
   // ---------- loop ----------
   let last = performance.now();
-  // ---------- painted scene: sky, striped sun, drifting skyline, swaying palms, rippling water ----------
+  // ---------- painted scenes behind the menus and title cards: one distinct scene per level ----------
   const sceneCv = $('sceneBg'), sg2 = sceneCv.getContext('2d');
-  const SW = 480, SH = 270, HOR = Math.round(SH * 0.6);
+  const SW = 480, SH = 270, BAR = 22, HOR = Math.round(SH * 0.62);
   const upper = document.createElement('canvas'); upper.width = SW; upper.height = HOR;
   const ug = upper.getContext('2d');
-  const SCENE_PAL = {
-    menu: { top: '#0c1a3a', mid: '#1f8a9a', hor: '#7a3fa8', sun0: '#ffe0f0', sun1: '#ff5fa8', far: '#24185a', near: '#100a2c', win: '#ffd23f', water: '#16245e' },
-    l1: { top: '#05081e', mid: '#1a3a7a', hor: '#7a3fa8', sun0: '#ffe0f0', sun1: '#ff5fa8', far: '#1a1450', near: '#0a0824', win: '#ffd23f', water: '#0f1a4a' },
-    l2: { top: '#3a6ad0', mid: '#7fd0ff', hor: '#ffd6f5', sun0: '#ffffff', sun1: '#ffb3e6', far: '#8aa8ff', near: '#5a6ad8', win: '#ffffff', water: '#5a8ae0' },
-    l3: { top: '#12002a', mid: '#5a1fb0', hor: '#ff3fd1', sun0: '#ffe0ff', sun1: '#ff3fd1', far: '#2a0a5a', near: '#14052e', win: '#33f6ff', water: '#2a0a5a' },
-    l4: { top: '#3a0a3a', mid: '#ff6a3d', hor: '#ffd23f', sun0: '#fff3b0', sun1: '#ff3f3f', far: '#6a1a3a', near: '#2a0a1e', win: '#ffd23f', water: '#7a2a4a' },
-    l5: { top: '#1a0805', mid: '#6a2410', hor: '#ff8a3d', sun0: '#ffe0b0', sun1: '#ff6a00', far: '#3a160c', near: '#1a0a06', win: '#ff8a3d', water: '#2a100a' },
-    l6: { top: '#111111', mid: '#4a4a52', hor: '#c8c8d0', sun0: '#ffffff', sun1: '#9a9aa6', far: '#2a2a30', near: '#121216', win: '#ffffff', water: '#2a2a32' },
-    l7: { top: '#000000', mid: '#2a0050', hor: '#ff3fd1', sun0: '#e0fbff', sun1: '#33f6ff', far: '#1a0036', near: '#08001a', win: '#33f6ff', water: '#12002a' },
-    l8: { top: '#001a14', mid: '#0f9d7a', hor: '#ff3fd1', sun0: '#ffffff', sun1: '#ff3fd1', far: '#0a3a30', near: '#04140f', win: '#ffd23f', water: '#063a2e' }
-  };
-  // skyline: two layers of buildings, wider than the screen so they can drift
-  const makeSkyline = (n, hMin, hMax, seed) => {
-    let x = -120, b = [], r = seed;
-    const rand = () => (r = (r * 9301 + 49297) % 233280) / 233280;
-    while (x < SW + 120) {
-      const w = 10 + Math.floor(rand() * 22), h = hMin + Math.floor(rand() * (hMax - hMin));
-      const wins = [];
-      for (let wy = 4; wy < h - 3; wy += 5) for (let wx = 2; wx < w - 2; wx += 4) if (rand() < 0.38) wins.push([wx, wy, rand()]);
-      b.push({ x, w, h, wins, spire: rand() < 0.15 });
-      x += w + Math.floor(rand() * 3);
+  const srand = seed => { let r = seed; return () => (r = (r * 9301 + 49297) % 233280) / 233280; };
+  const makeSkyline = (hMin, hMax, seed, gap = 3) => {
+    let x = -140; const b = [], rand = srand(seed);
+    while (x < SW + 140) {
+      const w = 10 + Math.floor(rand() * 24), h = hMin + Math.floor(rand() * (hMax - hMin)), wins = [];
+      for (let wy = 4; wy < h - 3; wy += 5) for (let wx = 2; wx < w - 2; wx += 4) if (rand() < 0.36) wins.push([wx, wy, rand()]);
+      b.push({ x, w, h, wins, spire: rand() < 0.18, ant: rand() < 0.25 });
+      x += w + Math.floor(rand() * gap);
     }
     return b;
   };
-  const farCity = makeSkyline(40, 26, 74, 7), nearCity = makeSkyline(30, 14, 46, 19);
-  const PALMS = [[34, 1], [70, 0.8], [402, 0.9], [446, 1.1]];
-  function drawPalm(g, x, base, sc, t, i, col) {
-    const sway = Math.sin(t * 1.1 + i * 1.7) * 0.12;
-    const topX = x + 10 * sc + Math.sin(t * 0.9 + i) * 3 * sc, topY = base - 70 * sc;
-    g.strokeStyle = col; g.lineWidth = 3 * sc; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(x, base); g.quadraticCurveTo(x + 2 * sc, base - 40 * sc, topX, topY); g.stroke();
+  const farCity = makeSkyline(30, 84, 7), nearCity = makeSkyline(14, 50, 19), lowCity = makeSkyline(8, 26, 31, 8);
+  const factories = makeSkyline(16, 40, 43, 6);
+  const clouds = Array.from({ length: 14 }, (_, i) => { const r = srand(i * 71 + 5); return { x: r() * SW * 1.4 - 60, y: 18 + r() * 120, s: 0.6 + r() * 1.4, v: 4 + r() * 10 }; });
+  const rocks = Array.from({ length: 22 }, (_, i) => { const r = srand(i * 13 + 2); return { x: r() * SW, y: r() * SH, v: 30 + r() * 60, s: 2 + r() * 4 }; });
+  const smoke = Array.from({ length: 26 }, (_, i) => { const r = srand(i * 17 + 9); return { c: Math.floor(r() * 5), ph: r(), s: 6 + r() * 10 }; });
+
+  function skyGrad(g, stops) {
+    const gr = g.createLinearGradient(0, 0, 0, HOR);
+    stops.forEach(([o, c]) => gr.addColorStop(o, c));
+    g.fillStyle = gr; g.fillRect(0, 0, SW, HOR);
+  }
+  function glowSun(g, x, y, r, c0, c1, stripeCol, t) {
+    const halo = g.createRadialGradient(x, y, r * 0.6, x, y, r * 2.4);
+    halo.addColorStop(0, c1); halo.addColorStop(1, 'rgba(0,0,0,0)');
+    g.globalAlpha = 0.65; g.fillStyle = halo; g.fillRect(x - r * 2.5, y - r * 2.5, r * 5, r * 5); g.globalAlpha = 1;
+    const gr = g.createLinearGradient(0, y - r, 0, y + r);
+    gr.addColorStop(0, c0); gr.addColorStop(1, c1);
+    g.save(); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.clip();
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    if (stripeCol) { g.fillStyle = stripeCol; for (let yy = y + 2, h = 2; yy < y + r; yy += 8, h += 1) g.fillRect(x - r, yy + Math.sin(t * 2 + yy) * 0.6, r * 2, h); }
+    g.restore();
+  }
+  function skyline(g, city, col, win, drift, base, winA, t, neon) {
+    for (const b of city) {
+      const x = Math.round(b.x + drift), top = base - b.h;
+      g.fillStyle = col; g.fillRect(x, top, b.w, b.h);
+      if (b.spire) g.fillRect(x + (b.w >> 1) - 1, top - 9, 2, 9);
+      if (b.ant && neon) { g.fillStyle = Math.sin(t * 4 + b.x) > 0 ? neon : col; g.fillRect(x + (b.w >> 1) - 1, top - 11, 2, 2); }
+      g.fillStyle = win;
+      for (const [wx, wy, ph] of b.wins) { g.globalAlpha = winA * (Math.sin(t * 1.3 + ph * 40) > -0.7 ? 1 : 0.25); g.fillRect(x + wx, top + wy, 2, 2); }
+      g.globalAlpha = 1;
+    }
+  }
+  function palm(g, x, base, sc, t, i, col) {
+    const sway = Math.sin(t * 1.2 + i * 1.7) * 0.14, topX = x + 12 * sc + Math.sin(t * 0.9 + i) * 3 * sc, topY = base - 92 * sc;
+    g.strokeStyle = col; g.lineWidth = 4 * sc; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x, base); g.quadraticCurveTo(x + 2 * sc, base - 50 * sc, topX, topY); g.stroke();
     g.fillStyle = col;
-    for (let k = 0; k < 7; k++) {
-      const a = -Math.PI / 2 + (k - 3) * 0.55 + sway, len = (26 + (k % 2) * 6) * sc;
-      const ex = topX + Math.cos(a) * len, ey = topY + Math.sin(a) * len * 0.55 + len * 0.45;
+    for (let k = 0; k < 8; k++) {
+      const a = -Math.PI / 2 + (k - 3.5) * 0.5 + sway, len = (32 + (k % 2) * 8) * sc;
+      const ex = topX + Math.cos(a) * len, ey = topY + Math.sin(a) * len * 0.5 + len * 0.55;
       g.beginPath(); g.moveTo(topX, topY);
-      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.6, topY + Math.sin(a) * len * 0.7 - 6 * sc, ex, ey);
-      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.5, topY + Math.sin(a) * len * 0.4, topX, topY + 2 * sc);
+      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.6, topY + Math.sin(a) * len * 0.7 - 8 * sc, ex, ey);
+      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.5, topY + Math.sin(a) * len * 0.35, topX, topY + 3 * sc);
       g.fill();
     }
   }
-  function drawScene(t, P) {
-    const g = ug;
-    const sky = g.createLinearGradient(0, 0, 0, HOR);
-    sky.addColorStop(0, P.top); sky.addColorStop(0.62, P.mid); sky.addColorStop(1, P.hor);
-    g.fillStyle = sky; g.fillRect(0, 0, SW, HOR);
-    // striped sun
-    const sx = SW / 2 + Math.sin(t * 0.3) * 8, sy = HOR * 0.6, sr = 64;
-    const sunG = g.createLinearGradient(0, sy - sr, 0, sy + sr);
-    sunG.addColorStop(0, P.sun0); sunG.addColorStop(1, P.sun1);
-    g.save(); g.beginPath(); g.arc(sx, sy, sr, 0, Math.PI * 2); g.clip();
-    g.fillStyle = sunG; g.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
-    g.fillStyle = P.mid;
-    for (let y = sy + 4, h = 2; y < sy + sr; y += 8, h += 1) g.fillRect(sx - sr, y + Math.sin(t * 2 + y) * 0.5, sr * 2, h);
-    g.restore();
-    // skyline, drifting back and forth (near layer drifts more)
-    const layer = (city, color, drift, winA) => {
-      for (const b of city) {
-        const x = Math.round(b.x + drift), top = HOR - b.h;
-        g.fillStyle = color; g.fillRect(x, top, b.w, b.h);
-        if (b.spire) g.fillRect(x + (b.w >> 1) - 1, top - 8, 2, 8);
-        g.fillStyle = P.win;
-        for (const [wx, wy, ph] of b.wins) { g.globalAlpha = winA * (0.45 + 0.55 * (Math.sin(t * 1.5 + ph * 40) > -0.6 ? 1 : 0)); g.fillRect(x + wx, top + wy, 2, 2); }
-        g.globalAlpha = 1;
-      }
-    };
-    layer(farCity, P.far, Math.sin(t * 0.25) * 22, 0.55);
-    layer(nearCity, P.near, Math.sin(t * 0.25 + 0.4) * 40, 0.9);
-    PALMS.forEach(([px, sc], i) => drawPalm(g, px + Math.sin(t * 0.25 + 0.4) * 40, HOR, sc, t, i, P.near));
-
-    // compose: sky above the horizon, a squashed rippling reflection below
-    sg2.drawImage(upper, 0, 0);
+  function haze(g, y, col, h = 30) {
+    const gr = g.createLinearGradient(0, y - h, 0, y + 2);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, col);
+    g.globalAlpha = 0.8; g.fillStyle = gr; g.fillRect(0, y - h, SW, h + 2); g.globalAlpha = 1;
+  }
+  function reflect(t, water, strength = 0.6, ripple = 1) {
     const wh = SH - HOR;
-    const wat = sg2.createLinearGradient(0, HOR, 0, SH);
-    wat.addColorStop(0, P.water); wat.addColorStop(1, '#05030f');
-    sg2.fillStyle = wat; sg2.fillRect(0, HOR, SW, wh);
-    sg2.globalAlpha = 0.55;
+    const wg = sg2.createLinearGradient(0, HOR, 0, SH);
+    wg.addColorStop(0, water); wg.addColorStop(1, '#030108');
+    sg2.fillStyle = wg; sg2.fillRect(0, HOR, SW, wh);
+    sg2.globalAlpha = strength;
     for (let y = 0; y < wh; y++) {
-      const srcY = HOR - 1 - Math.floor(y / wh * HOR * 0.85);
-      const off = Math.sin(y * 0.45 + t * 3) * (1 + y * 0.04);
-      sg2.drawImage(upper, 0, srcY, SW, 1, off, HOR + y, SW, 1);
+      const srcY = HOR - 1 - Math.floor(y / wh * HOR * 0.8);
+      sg2.drawImage(upper, 0, srcY, SW, 1, Math.sin(y * 0.5 + t * 3) * (1 + y * 0.05) * ripple, HOR + y, SW, 1);
     }
     sg2.globalAlpha = 1;
-    sg2.fillStyle = 'rgba(255,255,255,0.08)';
-    for (let i = 0; i < 18; i++) { const y = HOR + 3 + ((i * 37 + Math.floor(t * 20)) % wh); sg2.fillRect((i * 97 + Math.sin(t + i) * 30) % SW, y, 10 + (i % 4) * 6, 1); }
+    sg2.fillStyle = 'rgba(255,255,255,0.09)';
+    for (let i = 0; i < 20; i++) sg2.fillRect((i * 97 + Math.sin(t + i) * 30 + 480) % SW, HOR + 3 + ((i * 37 + Math.floor(t * 18)) % wh), 8 + (i % 4) * 6, 1);
+  }
+  function ground(col0, col1) {
+    const gg = sg2.createLinearGradient(0, HOR, 0, SH);
+    gg.addColorStop(0, col0); gg.addColorStop(1, col1);
+    sg2.fillStyle = gg; sg2.fillRect(0, HOR, SW, SH - HOR);
+  }
+
+  const SCENES = {
+    // main menu: night city, huge glowing sun, palms, wet street reflection
+    menu(t) {
+      const g = ug, d = Math.sin(t * 0.3);
+      skyGrad(g, [[0, '#071a2e'], [0.45, '#11667a'], [0.8, '#2f9db0'], [1, '#7a4fb8']]);
+      glowSun(g, SW / 2 + d * 6, HOR - 34, 70, '#ffd2a0', '#ff3f8a', '#2f9db0', t);
+      haze(g, HOR, '#ff7ad0', 44);
+      skyline(g, farCity, '#1c1450', '#ff9ae8', d * 20, HOR, 0.5, t, '#ff3fd1');
+      skyline(g, nearCity, '#07051a', '#ffd23f', d * 40, HOR, 0.9, t, '#33f6ff');
+      [[30, 1.15], [78, 0.85], [398, 0.95], [450, 1.25]].forEach(([x, s], i) => palm(g, x + d * 40, HOR + 4, s, t, i, '#030210'));
+      sg2.drawImage(upper, 0, 0); reflect(t, '#1a2a6e', 0.65);
+    },
+    // 1 midnight on-ramp: deep night, moon-like sun, dense lit skyline, highway lights
+    l1(t) {
+      const g = ug, d = Math.sin(t * 0.3);
+      skyGrad(g, [[0, '#02030f'], [0.6, '#0d1a4a'], [1, '#3a2a7a']]);
+      for (let i = 0; i < 60; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + 0.5 * (Math.sin(t * 2 + i) * 0.5 + 0.5)})`; g.fillRect((i * 83) % SW, (i * 47) % (HOR - 70), 1, 1); }
+      glowSun(g, 360 + d * 4, 70, 26, '#ffffff', '#c8d4ff', null, t);
+      skyline(g, farCity, '#15124a', '#ffd23f', d * 16, HOR, 0.8, t, '#ff3fd1');
+      skyline(g, nearCity, '#05041a', '#ffe9a0', d * 30, HOR, 1, t, '#ff3fd1');
+      sg2.drawImage(upper, 0, 0); ground('#0a0a24', '#020208');
+      for (let i = 0; i < 12; i++) { const p = ((t * 0.6 + i / 12) % 1); const y = HOR + p * p * (SH - HOR); sg2.fillStyle = i % 2 ? '#ff4040' : '#fff6c0'; sg2.fillRect(SW / 2 + (i % 2 ? 1 : -1) * (6 + p * p * 160), y, 1 + p * 4, 1 + p * 2); }
+    },
+    // 2 glass highway: bright sky above the clouds, floating glass towers
+    l2(t) {
+      const g = ug;
+      skyGrad(g, [[0, '#2f5fd0'], [0.6, '#8ad4ff'], [1, '#ffe4f6']]);
+      glowSun(g, 120, 70, 34, '#ffffff', '#fff2b0', null, t);
+      for (const c of clouds) {
+        const x = ((c.x + t * c.v) % (SW + 160)) - 80;
+        g.fillStyle = 'rgba(255,255,255,0.9)';
+        [[0, 0, 18], [16, -6, 14], [-16, -3, 12], [30, 2, 10]].forEach(([dx, dy, r]) => { g.beginPath(); g.arc(x + dx * c.s, c.y + dy * c.s, r * c.s, 0, 7); g.fill(); });
+      }
+      for (let i = 0; i < 7; i++) {
+        const x = 40 + i * 64 + Math.sin(t * 0.4 + i) * 10, h = 40 + (i * 37) % 60, y = HOR - h - 20 + Math.sin(t * 0.8 + i * 2) * 6;
+        g.fillStyle = 'rgba(200,240,255,0.35)'; g.fillRect(x, y, 22, h);
+        g.strokeStyle = 'rgba(255,255,255,0.8)'; g.strokeRect(x + 0.5, y + 0.5, 21, h - 1);
+      }
+      sg2.drawImage(upper, 0, 0);
+      const cg = sg2.createLinearGradient(0, HOR, 0, SH); cg.addColorStop(0, '#ffffff'); cg.addColorStop(1, '#b8d8ff');
+      sg2.fillStyle = cg; sg2.fillRect(0, HOR, SW, SH - HOR);
+      sg2.fillStyle = 'rgba(160,190,255,0.5)';
+      for (let i = 0; i < 9; i++) { const x = ((i * 70 + t * 14) % (SW + 80)) - 40; sg2.beginPath(); sg2.arc(x, HOR + 8 + (i % 3) * 14, 22, 0, Math.PI, true); sg2.fill(); }
+    },
+    // 3 pinball district: arcade night, giant neon wheel, flashing signs
+    l3(t) {
+      const g = ug, d = Math.sin(t * 0.35);
+      skyGrad(g, [[0, '#0c0020'], [0.7, '#3a0a7a'], [1, '#ff3fd1']]);
+      const cx = 340 + d * 10, cy = HOR - 70, R = 62;
+      g.strokeStyle = '#33f6ff'; g.lineWidth = 2;
+      g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
+      for (let k = 0; k < 12; k++) {
+        const a = t * 0.5 + k * Math.PI / 6;
+        g.strokeStyle = k % 2 ? '#ff3fd1' : '#ffd23f';
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); g.stroke();
+        g.fillStyle = Math.sin(t * 6 + k) > 0 ? '#ffd23f' : '#ff3fd1'; g.fillRect(cx + Math.cos(a) * R - 3, cy + Math.sin(a) * R - 3, 6, 6);
+      }
+      g.fillStyle = '#0a0418'; g.fillRect(cx - 4, cy, 8, HOR - cy);
+      skyline(g, lowCity, '#0a0418', '#33f6ff', d * 30, HOR, 0.9, t, '#ff3fd1');
+      ['PLAY', 'BONUS', 'TILT'].forEach((w, i) => {
+        const x = 30 + i * 90 + d * 30, y = HOR - 52 - (i % 2) * 18, on = Math.sin(t * 5 + i * 2) > -0.3;
+        g.strokeStyle = on ? ['#ff3fd1', '#ffd23f', '#33f6ff'][i] : '#2a1a4a'; g.lineWidth = 2; g.strokeRect(x, y, 58, 18);
+        g.fillStyle = g.strokeStyle; g.font = 'bold 12px monospace'; g.textAlign = 'center'; g.fillText(w, x + 29, y + 13);
+      });
+      sg2.drawImage(upper, 0, 0); reflect(t, '#2a0a5a', 0.55);
+    },
+    // 4 sunset slide: desert, mesas, huge low sun, power lines
+    l4(t) {
+      const g = ug, d = Math.sin(t * 0.25);
+      skyGrad(g, [[0, '#2a0a3a'], [0.5, '#c43a5a'], [0.85, '#ff8a3d'], [1, '#ffd23f']]);
+      glowSun(g, SW / 2 + d * 5, HOR - 10, 84, '#fff3b0', '#ff3f3f', '#c43a5a', t);
+      g.fillStyle = '#3a0a2a';
+      [[20, 60, 70], [130, 40, 46], [300, 90, 58], [420, 50, 80]].forEach(([x, w, h]) => { const xx = x + d * 18; g.beginPath(); g.moveTo(xx - 14, HOR); g.lineTo(xx, HOR - h); g.lineTo(xx + w, HOR - h); g.lineTo(xx + w + 14, HOR); g.fill(); });
+      for (let i = 0; i < 5; i++) {
+        const x = 30 + i * 110 + d * 34, y = HOR;
+        g.strokeStyle = '#1a0614'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 60); g.moveTo(x - 10, y - 52); g.lineTo(x + 10, y - 52); g.moveTo(x - 7, y - 44); g.lineTo(x + 7, y - 44); g.stroke();
+        g.lineWidth = 1; g.beginPath(); g.moveTo(x - 10, y - 52); g.quadraticCurveTo(x + 55, y - 40, x + 100, y - 52); g.stroke();
+      }
+      sg2.drawImage(upper, 0, 0); ground('#7a2a3a', '#2a0a14');
+      sg2.fillStyle = 'rgba(255,200,120,0.25)';
+      for (let i = 0; i < 6; i++) { const p = ((t * 0.3 + i / 6) % 1); sg2.fillRect(0, HOR + p * p * (SH - HOR), SW, 1); }
+    },
+    // 5 the foundry: factories, smoking stacks, furnace glow, sparks
+    l5(t) {
+      const g = ug, d = Math.sin(t * 0.25);
+      skyGrad(g, [[0, '#0e0503'], [0.7, '#3a140a'], [1, '#c24a10']]);
+      haze(g, HOR, '#ff6a00', 70);
+      for (let c = 0; c < 5; c++) {
+        const x = 40 + c * 95 + d * 20, h = 70 + (c * 29) % 40;
+        g.fillStyle = '#120806'; g.fillRect(x, HOR - h, 12, h);
+        g.fillStyle = Math.sin(t * 3 + c) > 0 ? '#ff6a00' : '#7a2a00'; g.fillRect(x, HOR - h, 12, 3);
+        for (const sm of smoke) if (sm.c === c) {
+          const p = (t * 0.12 + sm.ph) % 1;
+          g.fillStyle = `rgba(60,40,36,${0.6 * (1 - p)})`;
+          g.beginPath(); g.arc(x + 6 + p * 40 + Math.sin(p * 6) * 6, HOR - h - p * 110, sm.s * (0.5 + p), 0, 7); g.fill();
+        }
+      }
+      skyline(g, factories, '#0a0403', '#ff8a3d', d * 30, HOR, 0.7, t, null);
+      for (let i = 0; i < 30; i++) { const p = (t * 0.7 + i / 30) % 1; g.fillStyle = i % 3 ? '#ffb070' : '#ffd23f'; g.fillRect((i * 53 + Math.sin(i + t) * 20 + 480) % SW, HOR - p * 140, 2, 2); }
+      sg2.drawImage(upper, 0, 0); reflect(t, '#3a1406', 0.45, 0.5);
+    },
+    // 6 rockfall canyon: towering rock walls, a narrow sky, rocks raining down
+    l6(t) {
+      const g = ug, d = Math.sin(t * 0.25);
+      skyGrad(g, [[0, '#d8d8e0'], [1, '#6a6a74']]);
+      const wall = (side, col, off) => {
+        g.fillStyle = col; g.beginPath();
+        const x0 = side < 0 ? 0 : SW; g.moveTo(x0, 0);
+        for (let y = 0; y <= HOR; y += 10) { const w = 120 + off + Math.sin(y * 0.07 + side) * 24 + Math.sin(y * 0.21) * 10 + d * 10 * side; g.lineTo(side < 0 ? w : SW - w, y); }
+        g.lineTo(x0, HOR); g.fill();
+      };
+      wall(-1, '#3a3a42', 30); wall(1, '#3a3a42', 30); wall(-1, '#18181c', 0); wall(1, '#18181c', 0);
+      for (const r of rocks) {
+        const y = (r.y + t * r.v) % (HOR + 20) - 20, x = SW / 2 - 70 + (r.x % 140) + Math.sin(t + r.x) * 4;
+        g.fillStyle = '#101014'; g.fillRect(x, y, r.s, r.s);
+      }
+      sg2.drawImage(upper, 0, 0); ground('#2a2a30', '#0a0a0c');
+      sg2.fillStyle = '#4a4a52';
+      for (let i = 0; i < 8; i++) { const p = ((t * 0.5 + i / 8) % 1); const y = HOR + p * p * (SH - HOR); sg2.fillRect(SW / 2 - 4 - p * 120, y, 2 + p * 4, 1 + p * 3); sg2.fillRect(SW / 2 + 4 + p * 120, y, 2 + p * 4, 1 + p * 3); }
+    },
+    // 7 laser arcade: total dark, neon grid floor, sweeping lasers
+    l7(t) {
+      const g = ug;
+      g.fillStyle = '#000000'; g.fillRect(0, 0, SW, HOR);
+      haze(g, HOR, '#7a1fff', 40);
+      for (let i = 0; i < 6; i++) {
+        const a = Math.sin(t * (0.8 + i * 0.2) + i) * 0.9;
+        g.strokeStyle = ['#ff3fd1', '#33f6ff', '#ffd23f'][i % 3]; g.globalAlpha = 0.75; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(40 + i * 80, HOR); g.lineTo(40 + i * 80 + Math.sin(a) * 300, HOR - Math.cos(a) * 300); g.stroke();
+      }
+      g.globalAlpha = 1;
+      sg2.drawImage(upper, 0, 0);
+      sg2.fillStyle = '#05000f'; sg2.fillRect(0, HOR, SW, SH - HOR);
+      sg2.strokeStyle = '#ff3fd1'; sg2.lineWidth = 1;
+      for (let i = -12; i <= 12; i++) { sg2.beginPath(); sg2.moveTo(SW / 2 + i * 8, HOR); sg2.lineTo(SW / 2 + i * 70, SH); sg2.stroke(); }
+      for (let i = 0; i < 10; i++) { const p = ((t * 0.5 + i / 10) % 1); const y = HOR + p * p * (SH - HOR); sg2.globalAlpha = 0.3 + 0.7 * p; sg2.beginPath(); sg2.moveTo(0, y); sg2.lineTo(SW, y); sg2.stroke(); }
+      sg2.globalAlpha = 1;
+    },
+    // 8 meltdown: a dripping colour-cycling sun, a wobbling melting skyline
+    l8(t) {
+      const g = ug, h = t * 0.08;
+      const c = (o, l) => `hsl(${((h + o) % 1) * 360}, 90%, ${l}%)`;
+      skyGrad(g, [[0, c(0.7, 12)], [0.6, c(0.85, 35)], [1, c(0, 60)]]);
+      glowSun(g, SW / 2, HOR - 40, 66, c(0.15, 75), c(0.95, 55), c(0.85, 35), t);
+      g.fillStyle = c(0.95, 55);
+      for (let k = 0; k < 9; k++) { const x = SW / 2 - 50 + k * 12, len = 20 + Math.sin(t * 2 + k) * 14 + k % 3 * 8; g.fillRect(x, HOR - 10, 5, len); g.beginPath(); g.arc(x + 2.5, HOR - 10 + len, 3.5, 0, 7); g.fill(); }
+      const tmp = makeMeltCache();
+      tmp.g.clearRect(0, 0, SW, HOR);
+      skyline(tmp.g, nearCity, c(0.6, 8), c(0.15, 70), Math.sin(t * 0.3) * 30, HOR, 0.9, t, c(0.4, 60));
+      for (let x = 0; x < SW; x += 2) g.drawImage(tmp.cv, x, 0, 2, HOR, x, Math.sin(x * 0.05 + t * 2) * 6, 2, HOR);
+      sg2.drawImage(upper, 0, 0); reflect(t, c(0.75, 18), 0.6, 2);
+    }
+  };
+  let meltCache = null;
+  function makeMeltCache() { if (!meltCache) { const cv = document.createElement('canvas'); cv.width = SW; cv.height = HOR; meltCache = { cv, g: cv.getContext('2d') }; } return meltCache; }
+
+  function drawScene(t, key) {
+    (SCENES[key] || SCENES.menu)(t);
+    // letterbox bars and a little tape noise
+    sg2.fillStyle = '#000'; sg2.fillRect(0, 0, SW, BAR); sg2.fillRect(0, SH - BAR, SW, BAR);
+    sg2.fillStyle = 'rgba(255,255,255,0.05)';
+    for (let i = 0; i < 40; i++) sg2.fillRect(Math.random() * SW, BAR + Math.random() * (SH - BAR * 2), 1 + Math.random() * 3, 1);
+    if (Math.random() < 0.04) { const y = BAR + Math.random() * (SH - BAR * 2); sg2.drawImage(sceneCv, 0, y, SW, 6, (Math.random() - 0.5) * 12, y, SW, 6); }
   }
   function updateScene() {
     const on = state === 'ready' || state === 'select' || state === 'intro';
     sceneCv.hidden = !on;
     document.body.classList.toggle('scene-on', on);
     if (!on) return;
-    const pal = state === 'ready' ? SCENE_PAL.menu : SCENE_PAL['l' + (levelIdx + 1)] || SCENE_PAL.menu;
-    drawScene(performance.now() / 1000, pal);
+    drawScene(performance.now() / 1000, state === 'ready' ? 'menu' : 'l' + (levelIdx + 1));
   }
 
   function frame(now) {
