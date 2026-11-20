@@ -148,8 +148,14 @@
   .intro { background: rgba(8, 2, 20, 0.95); }
   /* ---------- painted scene behind the main menu, level select and title cards ---------- */
   #sceneBg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; image-rendering: pixelated; pointer-events: none; }
-  body.scene-on #startScreen, body.scene-on #levelScreen, body.scene-on #introScreen { background: linear-gradient(180deg, rgba(8, 2, 20, 0.05), rgba(8, 2, 20, 0.15) 55%, rgba(8, 2, 20, 0.55)); }
-  body.scene-on #startScreen .sun, body.scene-on #levelScreen .burst, body.scene-on #introScreen .tracking { display: none; }
+  body.scene-on .overlay { background: radial-gradient(ellipse at 38% 50%, rgba(8, 2, 20, 0.6), rgba(8, 2, 20, 0.12) 72%), linear-gradient(180deg, rgba(8, 2, 20, 0), rgba(8, 2, 20, 0.5)); }
+  body.scene-on .overlay .sun, body.scene-on .overlay .burst, body.scene-on .tracking { display: none; }
+  body.scene-on .tag { color: var(--sun); letter-spacing: 0.06em; text-shadow: 2px 2px 0 #3a0a6a, 0 0 10px rgba(255, 210, 63, 0.5); }
+  body.scene-on .row:not(.sel):not(.big), body.scene-on .desc, body.scene-on .hint, body.scene-on .best-line, body.scene-on .wallet, body.scene-on .stats, body.scene-on .hs { text-shadow: 0 2px 0 #08021a, 0 0 8px rgba(8, 2, 20, 0.95); }
+  .vhs-title.small.brush { font-size: clamp(38px, 8vw, 76px); }
+  .row.big .bl { font-family: 'Permanent Marker', 'Impact', 'Arial Black', sans-serif; font-size: clamp(30px, 4.6vw, 50px); line-height: 1.05; color: #e4d2ff; letter-spacing: 0.02em;
+    -webkit-text-stroke: 2px #4a1080; filter: url(#rough); text-shadow: 2px 4px 0 #6a2ab0, 4px 7px 0 #2a0650; transform: skewX(-6deg); }
+  .row.big.sel .bl { color: #ffffff; }
   .brush { font-family: 'Permanent Marker', 'Impact', 'Arial Black', sans-serif; font-weight: 400; color: #c8a0ff; letter-spacing: 0.01em; word-spacing: 0.3em; line-height: 0.95; filter: url(#rough); -webkit-text-stroke: 2px #4a1080; transform: scaleX(1.18) skewX(-6deg); transform-origin: left center;
     text-shadow: -3px 0 rgba(255, 63, 209, 0.7), 3px 0 rgba(51, 246, 255, 0.55), 2px 4px 0 #6a2ab0, 4px 8px 0 #2a0650, 0 14px 26px rgba(0, 0, 0, 0.7);
     animation: sway 3.4s ease-in-out infinite; transform-origin: 50% 60%; }
@@ -220,11 +226,10 @@
   .reel-mark { position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; background: var(--sun); box-shadow: 0 0 14px var(--sun); transform: translateX(-50%); }
   .won { display: grid; gap: 10px; justify-items: start; }
   .won-rarity { font-family: var(--pixel); font-size: 12px; color: var(--night); background: var(--r); padding: 7px 10px; box-shadow: 4px 4px 0 var(--pink); }
-  .row.big .bl { font-family: var(--pixel); font-size: clamp(20px, 3.4vw, 32px); line-height: 1.15; max-width: 100%; color: var(--paper); text-shadow: -3px 0 var(--pink), 3px 0 var(--cyan), 0 4px 0 var(--night); }
   .row.big .bl .ch { animation: bob 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * -0.18s); }
   .row.big .bs { font-family: var(--term); font-size: 20px; line-height: 1.1; color: var(--cyan); text-shadow: 0 2px 0 var(--night); }
   .row.big.sel { background: var(--pink); box-shadow: 9px 9px 0 var(--sun); animation: selwob 0.4s steps(2) infinite; }
-  .row.big.sel .bl .ch { animation: wave 1.2s ease-in-out infinite, rainbow 0.8s steps(1) infinite; animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * -0.07s); }
+  .row.big.sel .bl .ch { animation: wave 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.1s); }
   .row.big.sel .bs { color: var(--night); text-shadow: none; }
   @media (max-width: 560px) { .rows.big-wrap { grid-template-columns: minmax(0, 1fr); } .row.big { min-height: 110px; } }
 
@@ -328,7 +333,7 @@
   <div class="sun" aria-hidden="true"></div>
   <div class="menu">
     <div class="tag">◢ ENDLESS · YOUR SETTINGS ◣</div>
-    <h1 class="vhs-title wave" data-wave>ENDLESS</h1>
+    <h1 class="vhs-title brush wave" data-wave>ENDLESS</h1>
     <div class="rows" id="endlessRows"></div>
     <div class="desc" id="endlessDesc"></div>
     <div class="best-line" id="endlessBest"></div>
@@ -339,7 +344,7 @@
 <div class="overlay" id="lvsetScreen" hidden>
   <div class="menu">
     <div class="tag">◢ LEVELS · YOUR SETTINGS ◣</div>
-    <h1 class="vhs-title wave" data-wave>SETTINGS</h1>
+    <h1 class="vhs-title brush wave" data-wave>SETTINGS</h1>
     <div class="rows" id="lvsetRows"></div>
     <div class="desc" id="lvsetDesc"></div>
     <div class="hint">↑↓ CHOOSE · ←→ CHANGE · ESC BACK TO THE TAPES</div>
@@ -351,7 +356,7 @@
   <div class="menu">
     <div class="tag" id="overTag">ENDLESS · NORMAL</div>
     <div class="over-head">
-      <h1 class="vhs-title small wave" id="overTitle">WIPEOUT</h1>
+      <h1 class="vhs-title brush small wave" id="overTitle">WIPEOUT</h1>
       <div class="grade" id="grade" aria-label="Grade">B</div>
     </div>
     <div class="badge" id="newBest" hidden>★ NEW HIGH SCORE ★</div>
@@ -373,7 +378,7 @@
 <div class="overlay" id="pauseScreen" hidden>
   <div class="menu">
     <div class="tag">◢ TAPE PAUSED ◣</div>
-    <h1 class="vhs-title wave" data-wave>PAUSED</h1>
+    <h1 class="vhs-title brush wave" data-wave>PAUSED</h1>
     <div class="rows" id="pauseRows"></div>
     <div class="desc" id="pauseDesc"></div>
   </div>
@@ -419,7 +424,7 @@
 <div class="overlay" id="musicScreen" hidden>
   <div class="menu">
     <div class="tag">◢ YOUR MUSIC ◣</div>
-    <h1 class="vhs-title small wave" data-wave>YOUR SONGS</h1>
+    <h1 class="vhs-title brush small wave" data-wave>YOUR SONGS</h1>
     <div class="desc">Pick songs you own. Select them all at once and each one is put on the level it fits; change any slot after. They stay in this browser only.</div>
     <div class="rows" id="musicRows"></div>
     <div class="desc" id="musicDesc"></div>
@@ -432,7 +437,7 @@
   <div class="burst" aria-hidden="true"></div>
   <div class="menu">
     <div class="tag">◢ CASES &amp; SKINS ◣</div>
-    <div class="shop-top"><div class="ballprev" id="ballPrev" aria-hidden="true"></div><div><h1 class="vhs-title small wave" data-wave>CASES</h1><div class="wallet" id="shopWallet">◉ 0 COINS</div></div></div>
+    <div class="shop-top"><div class="ballprev" id="ballPrev" aria-hidden="true"></div><div><h1 class="vhs-title brush small wave" data-wave>CASES</h1><div class="wallet" id="shopWallet">◉ 0 COINS</div></div></div>
     <div class="rows" id="shopRows"></div>
     <div class="desc" id="shopDesc"></div>
     <div class="hint">↑↓ CHOOSE · ←→ CHANGE · ENTER OPEN · ESC BACK · COINS COME FROM RUNS AND CLEARED LEVELS</div>
@@ -446,7 +451,7 @@
     <div class="reel" id="reel"><div class="reel-strip" id="reelStrip"></div><div class="reel-mark"></div></div>
     <div class="won" id="wonBox" hidden>
       <div class="won-rarity" id="wonRarity">RARE</div>
-      <h2 class="vhs-title small wave" id="wonName">CHROME</h2>
+      <h2 class="vhs-title brush small wave" id="wonName">CHROME</h2>
       <div class="desc" id="wonDesc"></div>
     </div>
     <div class="rows" id="caseRows"></div>
@@ -457,7 +462,7 @@
 <div class="overlay" id="promoScreen" hidden>
   <div class="menu">
     <div class="tag">◢ PROMO CODE ◣</div>
-    <h1 class="vhs-title small wave" data-wave>ENTER CODE</h1>
+    <h1 class="vhs-title brush small wave" data-wave>ENTER CODE</h1>
     <form class="promo-box" id="promoForm" autocomplete="off">
       <input id="promoInput" type="text" maxlength="32" spellcheck="false" aria-label="Promo code" placeholder="TYPE A CODE">
       <button type="submit" class="row action sel" id="promoGo">▶ REDEEM</button>
@@ -3976,11 +3981,12 @@
     if (Math.random() < 0.04) { const y = BAR + Math.random() * (SH - BAR * 2); sg2.drawImage(sceneCv, 0, y, SW, 6, (Math.random() - 0.5) * 12, y, SW, 6); }
   }
   function updateScene() {
-    const on = state === 'ready' || state === 'select' || state === 'intro';
+    const on = state !== 'play';
     sceneCv.hidden = !on;
     document.body.classList.toggle('scene-on', on);
     if (!on) return;
-    drawScene(performance.now() / 1000, state === 'ready' ? 'menu' : 'l' + (levelIdx + 1));
+    const levelish = ['select', 'intro', 'lvset'].includes(state) || (inLevels() && (state === 'paused' || state === 'over')) || (state === 'music' && side === 'levels');
+    drawScene(performance.now() / 1000, levelish ? 'l' + (levelIdx + 1) : 'menu');
   }
 
   function frame(now) {
