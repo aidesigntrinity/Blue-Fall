@@ -58,7 +58,17 @@
   .jump-btn.ready span { background: var(--pink); color: var(--night); }
 
   /* ---------- in-run pop-ups ---------- */
-  .popups { position: fixed; left: 50%; top: 25%; transform: translateX(-50%); display: grid; justify-items: center; gap: 4px; pointer-events: none; }
+  .popups { position: fixed; left: 50%; top: 25%; transform: translateX(-50%); display: grid; justify-items: center; gap: 6px; pointer-events: none; z-index: 5; }
+  /* pixel pop-ups: drawn small on a canvas and scaled up with hard pixel edges */
+  canvas.pix { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .pop.pix { animation: pop 0.9s steps(9) forwards; }
+  .notice canvas.pix { margin: 0 auto; }
+  .notice canvas.pix + canvas.pix { margin-top: 8px; }
+  .pix.neon { animation: pop 0.9s steps(9) forwards, huecycle 0.36s steps(3) infinite; }
+  .notice .pix.neon { animation: huecycle 0.5s steps(3) infinite; }
+  @keyframes huecycle { 0% { filter: hue-rotate(0deg); } 33% { filter: hue-rotate(120deg); } 66% { filter: hue-rotate(240deg); } }
+  body.pop-top .popups { top: 13%; } body.pop-top .notices { top: 20%; }
+  body.pop-low .popups { top: 60%; } body.pop-low .notices { top: 66%; }
   .pop { font-family: var(--pixel); font-size: clamp(10px, 2.6vw, 14px); color: var(--paper); white-space: nowrap;
     text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan), 0 3px 0 var(--night);
     animation: pop 0.9s steps(9) forwards, hue 0.3s steps(1) infinite; }
@@ -284,7 +294,7 @@
   @keyframes blink { 50% { opacity: 0.45; } }
   @keyframes flicker { 0%, 100% { opacity: 1; } 46% { opacity: 0.82; } 47% { opacity: 1; } 71% { opacity: 0.9; } 72% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) {
-    .wave .ch, .brush, .scene-tag, body.scene-on .row.big, body.scene-on .lv, .ballprev, .lv-name .ch, .row.big .ch, .row.big.sel, .burst, .thumb .t-ball, .row.sel, .grade, .combo, .timer.low, .badge, .hs .me, .overlay::after, .crt, .tracking, .intro-rec, .intro .vhs-title { animation: none !important; }
+    .wave .ch, .pix.neon, .brush, .scene-tag, body.scene-on .row.big, body.scene-on .lv, .ballprev, .lv-name .ch, .row.big .ch, .row.big.sel, .burst, .thumb .t-ball, .row.sel, .grade, .combo, .timer.low, .badge, .hs .me, .overlay::after, .crt, .tracking, .intro-rec, .intro .vhs-title { animation: none !important; }
     .pop, .notice { animation: fade 1.6s linear forwards !important; }
     @keyframes fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
   }
@@ -470,6 +480,16 @@
     <div class="promo-msg" id="promoMsg"></div>
     <div class="rows"><button type="button" class="row action" id="promoBack">▶ BACK TO CASES</button></div>
     <div class="hint">ENTER REDEEM · ESC BACK · SOME CODES WORK MORE THAN ONCE</div>
+  </div>
+</div>
+
+<div class="overlay" id="popsetScreen" hidden>
+  <div class="menu">
+    <div class="tag">POP-UPS</div>
+    <h1 class="vhs-title brush small wave" data-wave>POP-UPS</h1>
+    <div class="rows" id="popsetRows"></div>
+    <div class="desc" id="popsetDesc"></div>
+    <div class="hint">↑↓ CHOOSE · ←→ CHANGE · ENTER ON PREVIEW TO TRY IT · ESC BACK</div>
   </div>
 </div>
 
@@ -1492,7 +1512,7 @@
     start: { el: 'startRows', desc: null, rows: ['goEndless', 'goLevels'], sel: 0 },
     endless: { el: 'endlessRows', desc: 'endlessDesc', rows: ['start', 'mode', 'diff', 'theme', 'sens', 'trip', 'screen', 'sound', 'back'], sel: 0 },
     lvset: { el: 'lvsetRows', desc: 'lvsetDesc', rows: ['diff', 'sens', 'trip', 'screen', 'sound', 'tapes'], sel: 0 },
-    pause: { el: 'pauseRows', desc: 'pauseDesc', rows: () => ['resume'].concat(inLevels() ? [] : ['theme'], ['sens', 'trip', 'screen', 'sound', 'restart'], inLevels() ? ['levels', 'menu'] : ['menu']), sel: 0 },
+    pause: { el: 'pauseRows', desc: 'pauseDesc', rows: () => ['resume'].concat(inLevels() ? [] : ['theme'], ['sens', 'trip', 'screen', 'sound', 'popups', 'restart'], inLevels() ? ['levels', 'menu'] : ['menu']), sel: 0 },
     over:  { el: 'overRows', desc: null, rows: ['retry', 'menu'], sel: 0 }
   };
 
@@ -1527,7 +1547,7 @@
     const r = rowsOf(MENUS[name])[i];
     if (ACTIONS[r]) ACTIONS[r].run(); else cycle(name, i, 1);
   }
-  const activeMenu = () => ({ ready: 'start', setup: 'endless', lvset: 'lvset', paused: 'pause', music: 'music', shop: 'shop' })[state] || (state === 'case' && caseAnim && caseAnim.done ? 'caseMenu' : null) || ((state === 'over' && !overScreen.hidden) ? 'over' : null);
+  const activeMenu = () => ({ ready: 'start', setup: 'endless', lvset: 'lvset', paused: 'pause', music: 'music', shop: 'shop', popset: 'popset' })[state] || (state === 'case' && caseAnim && caseAnim.done ? 'caseMenu' : null) || ((state === 'over' && !overScreen.hidden) ? 'over' : null);
   function menuKey(e) {
     const name = activeMenu();
     if (!name) return false;
@@ -1546,6 +1566,7 @@
     if ((k === 'Escape' || k === 'Backspace') && name === 'lvset') { openLevels(); return true; }
     if ((k === 'Escape' || k === 'Backspace') && name === 'music') { closeMusic(); return true; }
     if ((k === 'Escape' || k === 'Backspace') && name === 'shop') { toMenu(); return true; }
+    if ((k === 'Escape' || k === 'Backspace') && name === 'popset') { closePopSet(); return true; }
     if ((k === 'Escape' || k === 'Backspace') && name === 'caseMenu') { openShop(); return true; }
     return false;
   }
@@ -1578,13 +1599,43 @@
     $('crt').hidden = v !== 'vhs';
     resize();
   }
+  // ---------- pop-up settings (shared by Endless and Levels) ----------
+  const POPOK = { show: ['all', 'big', 'off'], size: ['s', 'm', 'l'], pixel: ['fine', 'chunky'], pos: ['top', 'mid', 'low'], color: ['neon', 'gold', 'white', 'level'] };
+  const popCfg = (() => {
+    let v = {}; try { v = JSON.parse(store.get('bluefall-popups', '{}')) || {}; } catch (e) {}
+    const d = { show: 'all', size: 'm', pixel: 'chunky', pos: 'mid', color: 'neon' }, out = {};
+    for (const k in d) out[k] = POPOK[k].includes(v[k]) ? v[k] : d[k];
+    return out;
+  })();
+  function savePop() { store.set('bluefall-popups', JSON.stringify(popCfg)); applyPopPos(); }
+  function applyPopPos() { document.body.classList.toggle('pop-top', popCfg.pos === 'top'); document.body.classList.toggle('pop-low', popCfg.pos === 'low'); }
+  // draws text in the 8px pixel font onto a tiny canvas; CSS scales it up so every pixel shows
+  function pixText(text, big) {
+    const fine = popCfg.pixel === 'fine';
+    const base = fine ? 16 : 8;                                   // font size on the canvas
+    const scale = ({ s: 1, m: 1.5, l: 2 })[popCfg.size] * (big ? 2 : 1) * (fine ? 1 : 2);
+    const cv = document.createElement('canvas'), g = cv.getContext('2d');
+    const font = `${base}px "Press Start 2P", monospace`;
+    g.font = font;
+    const w = Math.ceil(g.measureText(text).width) + 6, h = base + 6, u = fine ? 2 : 1;
+    cv.width = w; cv.height = h;
+    g.font = font; g.textBaseline = 'top';
+    const main = popCfg.color === 'gold' ? '#ffd23f' : popCfg.color === 'white' ? '#ffffff' : popCfg.color === 'level' ? THEMES[themeKey].glow : (big ? '#ffd23f' : '#fff4fd');
+    g.fillStyle = '#13042a'; g.fillText(text, 3, 3 + u * 1.5);    // drop shadow
+    g.fillStyle = '#ff3fd1'; g.fillText(text, 3 - u, 2);           // pink fringe
+    g.fillStyle = '#33f6ff'; g.fillText(text, 3 + u, 2);           // cyan fringe
+    g.fillStyle = main; g.fillText(text, 3, 2);
+    cv.className = 'pix' + (popCfg.color === 'neon' ? ' neon' : '');
+    cv.style.width = Math.round(w * scale) + 'px'; cv.style.height = Math.round(h * scale) + 'px';
+    return cv;
+  }
+
   function notice(text, sub) {
+    if (popCfg.show === 'off') return;
     const el = document.createElement('div');
     el.className = 'notice';
-    const t = document.createElement('div');
-    t.className = 'wave'; t.textContent = text; wavify(t);
-    el.appendChild(t);
-    if (sub) { const sm = document.createElement('small'); sm.textContent = sub; el.appendChild(sm); }
+    el.appendChild(pixText(text.toUpperCase(), true));
+    if (sub) el.appendChild(pixText(sub.toUpperCase(), false));
     noticesEl.textContent = '';
     noticesEl.classList.toggle('high', state === 'over');
     noticesEl.appendChild(el);
@@ -2445,8 +2496,9 @@
   const scoreNow = () => Math.floor((Math.max(0, Math.floor(st.s)) + st.bonus) * D().mult * MODES[modeKey].mult);
 
   function popup(text) {
-    const el = document.createElement('div');
-    el.className = 'pop'; el.textContent = text;
+    if (popCfg.show !== 'all') return;
+    const el = pixText(text.toUpperCase(), false);
+    el.classList.add('pop');
     popupsEl.appendChild(el);
     while (popupsEl.children.length > 4) popupsEl.firstChild.remove();
     setTimeout(() => el.remove(), 900);
@@ -2477,7 +2529,7 @@
   const songFor = () => inLevels() ? LV().song : modeKey === 'chaos' ? 'chaos' : 'drive';
   function hideScreens() {
     startScreen.hidden = true; overScreen.hidden = true; pauseScreen.hidden = true; $('introScreen').hidden = true; $('levelScreen').hidden = true;
-    $('endlessScreen').hidden = true; $('lvsetScreen').hidden = true; $('musicScreen').hidden = true; $('shopScreen').hidden = true; $('caseScreen').hidden = true; $('promoScreen').hidden = true;
+    $('endlessScreen').hidden = true; $('lvsetScreen').hidden = true; $('musicScreen').hidden = true; $('shopScreen').hidden = true; $('caseScreen').hidden = true; $('promoScreen').hidden = true; $('popsetScreen').hidden = true;
     $('coinHud').hidden = true;
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   }
@@ -2636,6 +2688,35 @@
     name: v => v === 'yours' ? 'MY SONGS' : 'BUILT-IN', desc: v => v === 'yours' ? 'Your songs where you set one, built-in songs elsewhere.' : 'Always the built-in soundtrack.' };
   MENUS.music = { el: 'musicRows', desc: 'musicDesc', rows: ['loadAll', 'musicsrc'].concat(SLOTS.map(sl => 'slot_' + sl), ['clearAll', 'musicBack']), sel: 0 };
   MENUS.endless.rows.splice(MENUS.endless.rows.indexOf('back'), 0, 'music');
+  // pop-up settings screen
+  const popName = { all: 'ALL', big: 'BIG ALERTS ONLY', off: 'OFF', s: 'SMALL', m: 'MEDIUM', l: 'LARGE', fine: 'FINE', chunky: 'CHUNKY', top: 'TOP', mid: 'MIDDLE', low: 'LOW', neon: 'NEON', gold: 'GOLD', white: 'WHITE', level: "LEVEL'S COLOUR" };
+  const popOpt = (k, label, desc) => ({ label, list: () => POPOK[k], get: () => popCfg[k], set: v => { popCfg[k] = v; savePop(); }, name: v => popName[v], desc });
+  OPT.popShow = popOpt('show', 'SHOW', v => ({ all: 'Score pop-ups and big alerts.', big: 'Only big alerts (new high score, level clear, combos).', off: 'No pop-ups at all.' })[v]);
+  OPT.popSize = popOpt('size', 'SIZE', () => 'How big the pop-ups are.');
+  OPT.popPixel = popOpt('pixel', 'PIXELS', v => v === 'chunky' ? 'Big blocky pixels.' : 'Smaller, sharper pixels.');
+  OPT.popPos = popOpt('pos', 'POSITION', () => 'Where on the screen they appear.');
+  OPT.popColor = popOpt('color', 'COLOUR', v => ({ neon: 'Cycling pink, yellow and cyan.', gold: 'Gold.', white: 'White.', level: "Takes the current track's glow colour." })[v]);
+  let popBack = 'setup';
+  ACTIONS.popTest = { label: 'PREVIEW', desc: () => 'Shows sample pop-ups with these settings.', run: () => { popup('CLOSE +45  X3'); setTimeout(() => popup('BOOST +75  X4'), 250); setTimeout(() => notice('NEW HIGH SCORE', 'keep it rolling'), 450); } };
+  ACTIONS.popBack = { label: 'BACK', desc: () => '', run: () => closePopSet() };
+  ACTIONS.popups = { label: 'POP-UPS', desc: () => 'Change how in-run pop-ups look.', run: () => openPopSet() };
+  MENUS.popset = { el: 'popsetRows', desc: 'popsetDesc', rows: ['popShow', 'popSize', 'popPixel', 'popPos', 'popColor', 'popTest', 'popBack'], sel: 0 };
+  MENUS.endless.rows.splice(MENUS.endless.rows.indexOf('music'), 0, 'popups');
+  MENUS.lvset.rows.splice(MENUS.lvset.rows.indexOf('tapes'), 0, 'popups');
+  function openPopSet() {
+    popBack = state;
+    state = 'popset';
+    hideScreens();
+    $('popsetScreen').hidden = false;
+    MENUS.popset.sel = 0; renderMenu('popset');
+  }
+  function closePopSet() {
+    if (popBack === 'lvset') openLevelSettings();
+    else if (popBack === 'paused') { state = 'paused'; hideScreens(); pauseScreen.hidden = false; renderMenu('pause'); }
+    else openEndless();
+  }
+  applyPopPos();
+  try { document.fonts && document.fonts.load('16px "Press Start 2P"'); } catch (e) {}
   MENUS.lvset.rows.splice(MENUS.lvset.rows.indexOf('tapes'), 0, 'music');
   function openMusic(from) {
     musicBack = from;
