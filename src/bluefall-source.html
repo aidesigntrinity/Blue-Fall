@@ -1,7 +1,7 @@
 <title>Bluefall</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Rubik+Dirt&display=swap">
 <style>
   /* Layout: full-bleed WebGL slope, HUD strip on top, full-screen VHS-neon menus (tilted pixel title, cycling option rows, footer hints). */
   :root {
@@ -146,6 +146,26 @@
 
   /* level title card */
   .intro { background: rgba(8, 2, 20, 0.95); }
+  /* ---------- painted scene behind the main menu, level select and title cards ---------- */
+  #sceneBg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; image-rendering: pixelated; pointer-events: none; }
+  body.scene-on #startScreen, body.scene-on #levelScreen, body.scene-on #introScreen { background: linear-gradient(180deg, rgba(8, 2, 20, 0.05), rgba(8, 2, 20, 0.15) 55%, rgba(8, 2, 20, 0.55)); }
+  body.scene-on #startScreen .sun, body.scene-on #levelScreen .burst, body.scene-on #introScreen .tracking { display: none; }
+  .brush { font-family: 'Rubik Dirt', 'Impact', 'Arial Black', sans-serif; font-weight: 400; color: #caa4ff; letter-spacing: -0.01em; word-spacing: 0.3em; line-height: 0.95;
+    text-shadow: -3px 0 rgba(255, 63, 209, 0.85), 3px 0 rgba(51, 246, 255, 0.75), 0 5px 0 #3a0a6a, 0 9px 0 #1c0436, 0 14px 26px rgba(0, 0, 0, 0.6);
+    animation: sway 3.4s ease-in-out infinite; transform-origin: 50% 60%; }
+  h1.brush.vhs-title { font-size: clamp(54px, 13vw, 118px); }
+  #introTitle.brush { font-size: clamp(40px, 10vw, 92px); }
+  .card-title.brush { font-size: clamp(22px, 3.6vw, 34px); animation-duration: 4.2s; }
+  .lv.on .lv-name.brush { font-family: 'Rubik Dirt', 'Impact', sans-serif; font-size: clamp(24px, 4.2vw, 40px); }
+  .scene-tag { font-family: var(--pixel); font-size: clamp(11px, 2.2vw, 16px); color: var(--sun); letter-spacing: 0.06em;
+    text-shadow: 2px 2px 0 #3a0a6a, 0 0 10px rgba(255, 210, 63, 0.55); animation: drift 2.6s ease-in-out infinite; }
+  @keyframes sway { 0%, 100% { rotate: -3.5deg; translate: -16px 0; } 50% { rotate: 2.5deg; translate: 16px 0; } }
+  @keyframes drift { 0%, 100% { translate: -7px 0; } 50% { translate: 7px 0; } }
+  body.scene-on .row.big { animation: drift 3.4s ease-in-out infinite; }
+  body.scene-on .row.big + .row.big { animation-direction: reverse; }
+  body.scene-on .row.big.sel { animation: selwob 0.4s steps(2) infinite, drift 3.4s ease-in-out infinite; }
+  body.scene-on .lv { animation: drift 3s ease-in-out infinite; animation-delay: calc(var(--k) * -0.45s); text-shadow: 0 2px 0 rgba(8, 2, 20, 0.9); }
+  body.scene-on .lv-num { text-shadow: 0 2px 0 rgba(8, 2, 20, 0.9); }
   .intro .menu { gap: 12px; }
   .intro .vhs-title { font-size: clamp(24px, 8vw, 56px); animation: tear 3.4s steps(1) both; }
   .intro-num { font-family: var(--pixel); font-size: clamp(12px, 3vw, 16px); color: var(--sun); text-shadow: -2px 0 var(--pink), 2px 0 var(--cyan); }
@@ -258,13 +278,14 @@
   @keyframes blink { 50% { opacity: 0.45; } }
   @keyframes flicker { 0%, 100% { opacity: 1; } 46% { opacity: 0.82; } 47% { opacity: 1; } 71% { opacity: 0.9; } 72% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) {
-    .wave .ch, .ballprev, .lv-name .ch, .row.big .ch, .row.big.sel, .burst, .thumb .t-ball, .row.sel, .grade, .combo, .timer.low, .badge, .hs .me, .overlay::after, .crt, .tracking, .intro-rec, .intro .vhs-title { animation: none !important; }
+    .wave .ch, .brush, .scene-tag, body.scene-on .row.big, body.scene-on .lv, .ballprev, .lv-name .ch, .row.big .ch, .row.big.sel, .burst, .thumb .t-ball, .row.sel, .grade, .combo, .timer.low, .badge, .hs .me, .overlay::after, .crt, .tracking, .intro-rec, .intro .vhs-title { animation: none !important; }
     .pop, .notice { animation: fade 1.6s linear forwards !important; }
     @keyframes fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
   }
 </style>
 
 <div id="stage" aria-label="Game view"></div>
+<canvas id="sceneBg" width="480" height="270" hidden aria-hidden="true"></canvas>
 <div class="crt" id="crt" hidden></div>
 
 <div class="hud">
@@ -294,8 +315,8 @@
 <div class="overlay" id="startScreen">
   <div class="sun" aria-hidden="true"></div>
   <div class="menu">
-    <div class="tag">◢ DOWNHILL · TAPE 07 ◣</div>
-    <h1 class="vhs-title wave" data-wave>BLUEFALL</h1>
+    <div class="tag scene-tag">DOWNHILL · TAPE 07</div>
+    <h1 class="vhs-title brush wave" data-wave>BLUEFALL</h1>
     <div class="rows big-wrap" id="startRows"></div>
     <div class="hint">←→ CHOOSE · ENTER GO<br>IN A RUN: ←→ / A D STEER · SPACE / ↑ JUMP · ESC PAUSE · TOUCH: HOLD A SIDE, TAP JUMP</div>
   </div>
@@ -360,8 +381,8 @@
   <div class="tracking" aria-hidden="true"></div>
   <div class="intro-rec">PLAY</div>
   <div class="menu">
-    <div class="intro-num" id="introNum">LEVEL 01</div>
-    <h1 class="vhs-title wave" id="introTitle">MIDNIGHT ON-RAMP</h1>
+    <div class="intro-num scene-tag" id="introNum">LEVEL 01</div>
+    <h1 class="vhs-title brush wave" id="introTitle">MIDNIGHT ON-RAMP</h1>
     <div class="intro-date" id="introDate">MARCH 3RD, 1989 · 11:52 PM</div>
     <div class="intro-line" id="introLine"></div>
     <div class="hint">ENTER / TAP TO SKIP</div>
@@ -372,7 +393,7 @@
   <div class="burst" aria-hidden="true"></div>
   <div class="sel-wrap">
     <div class="sel-head">
-      <div class="tag">◢ SELECT A TAPE ◣</div>
+      <div class="tag scene-tag">SELECT A TAPE</div>
       <div><button type="button" class="sel-diff" id="selDiff">◀ NORMAL ▶</button> <button type="button" class="sel-diff" id="selOpts">⚙ SETTINGS</button></div>
     </div>
     <div class="sel-body">
@@ -380,7 +401,7 @@
       <div class="sel-card">
         <div class="thumb" id="selThumb" aria-hidden="true"><div class="t-sun"></div><div class="t-grid"></div><div class="t-road"></div><div class="t-ball"></div></div>
         <div class="card-num" id="selNum">LEVEL 01 / 08</div>
-        <h2 class="card-title wave" id="selTitle">MIDNIGHT ON-RAMP</h2>
+        <h2 class="card-title brush wave" id="selTitle">MIDNIGHT ON-RAMP</h2>
         <div class="card-date" id="selDate"></div>
         <div class="card-line" id="selLine"></div>
         <div class="card-rule" id="selRule"></div>
@@ -2816,7 +2837,7 @@
   function renderLevels() {
     const track = $('selTrack');
     track.innerHTML = LEVELS.map((lv, i) =>
-      `<button type="button" class="lv${i === levelIdx ? ' on' : ''}" data-lv="${i}" style="--k:${i}"><span class="lv-num">${String(i + 1).padStart(2, '0')}</span><span class="lv-name">${lv.name}</span></button>`
+      `<button type="button" class="lv${i === levelIdx ? ' on' : ''}" data-lv="${i}" style="--k:${i}"><span class="lv-num">${String(i + 1).padStart(2, '0')}</span><span class="lv-name${i === levelIdx ? ' brush' : ''}">${lv.name}</span></button>`
     ).join('');
     track.querySelectorAll('.lv-name').forEach(wavify);
     track.style.transform = `translateY(${-(levelIdx * SEL_ROW + SEL_ROW / 2)}px)`;
@@ -3699,6 +3720,106 @@
 
   // ---------- loop ----------
   let last = performance.now();
+  // ---------- painted scene: sky, striped sun, drifting skyline, swaying palms, rippling water ----------
+  const sceneCv = $('sceneBg'), sg2 = sceneCv.getContext('2d');
+  const SW = 480, SH = 270, HOR = Math.round(SH * 0.6);
+  const upper = document.createElement('canvas'); upper.width = SW; upper.height = HOR;
+  const ug = upper.getContext('2d');
+  const SCENE_PAL = {
+    menu: { top: '#0c1a3a', mid: '#1f8a9a', hor: '#7a3fa8', sun0: '#ffe0f0', sun1: '#ff5fa8', far: '#24185a', near: '#100a2c', win: '#ffd23f', water: '#16245e' },
+    l1: { top: '#05081e', mid: '#1a3a7a', hor: '#7a3fa8', sun0: '#ffe0f0', sun1: '#ff5fa8', far: '#1a1450', near: '#0a0824', win: '#ffd23f', water: '#0f1a4a' },
+    l2: { top: '#3a6ad0', mid: '#7fd0ff', hor: '#ffd6f5', sun0: '#ffffff', sun1: '#ffb3e6', far: '#8aa8ff', near: '#5a6ad8', win: '#ffffff', water: '#5a8ae0' },
+    l3: { top: '#12002a', mid: '#5a1fb0', hor: '#ff3fd1', sun0: '#ffe0ff', sun1: '#ff3fd1', far: '#2a0a5a', near: '#14052e', win: '#33f6ff', water: '#2a0a5a' },
+    l4: { top: '#3a0a3a', mid: '#ff6a3d', hor: '#ffd23f', sun0: '#fff3b0', sun1: '#ff3f3f', far: '#6a1a3a', near: '#2a0a1e', win: '#ffd23f', water: '#7a2a4a' },
+    l5: { top: '#1a0805', mid: '#6a2410', hor: '#ff8a3d', sun0: '#ffe0b0', sun1: '#ff6a00', far: '#3a160c', near: '#1a0a06', win: '#ff8a3d', water: '#2a100a' },
+    l6: { top: '#111111', mid: '#4a4a52', hor: '#c8c8d0', sun0: '#ffffff', sun1: '#9a9aa6', far: '#2a2a30', near: '#121216', win: '#ffffff', water: '#2a2a32' },
+    l7: { top: '#000000', mid: '#2a0050', hor: '#ff3fd1', sun0: '#e0fbff', sun1: '#33f6ff', far: '#1a0036', near: '#08001a', win: '#33f6ff', water: '#12002a' },
+    l8: { top: '#001a14', mid: '#0f9d7a', hor: '#ff3fd1', sun0: '#ffffff', sun1: '#ff3fd1', far: '#0a3a30', near: '#04140f', win: '#ffd23f', water: '#063a2e' }
+  };
+  // skyline: two layers of buildings, wider than the screen so they can drift
+  const makeSkyline = (n, hMin, hMax, seed) => {
+    let x = -120, b = [], r = seed;
+    const rand = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+    while (x < SW + 120) {
+      const w = 10 + Math.floor(rand() * 22), h = hMin + Math.floor(rand() * (hMax - hMin));
+      const wins = [];
+      for (let wy = 4; wy < h - 3; wy += 5) for (let wx = 2; wx < w - 2; wx += 4) if (rand() < 0.38) wins.push([wx, wy, rand()]);
+      b.push({ x, w, h, wins, spire: rand() < 0.15 });
+      x += w + Math.floor(rand() * 3);
+    }
+    return b;
+  };
+  const farCity = makeSkyline(40, 26, 74, 7), nearCity = makeSkyline(30, 14, 46, 19);
+  const PALMS = [[34, 1], [70, 0.8], [402, 0.9], [446, 1.1]];
+  function drawPalm(g, x, base, sc, t, i, col) {
+    const sway = Math.sin(t * 1.1 + i * 1.7) * 0.12;
+    const topX = x + 10 * sc + Math.sin(t * 0.9 + i) * 3 * sc, topY = base - 70 * sc;
+    g.strokeStyle = col; g.lineWidth = 3 * sc; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x, base); g.quadraticCurveTo(x + 2 * sc, base - 40 * sc, topX, topY); g.stroke();
+    g.fillStyle = col;
+    for (let k = 0; k < 7; k++) {
+      const a = -Math.PI / 2 + (k - 3) * 0.55 + sway, len = (26 + (k % 2) * 6) * sc;
+      const ex = topX + Math.cos(a) * len, ey = topY + Math.sin(a) * len * 0.55 + len * 0.45;
+      g.beginPath(); g.moveTo(topX, topY);
+      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.6, topY + Math.sin(a) * len * 0.7 - 6 * sc, ex, ey);
+      g.quadraticCurveTo(topX + Math.cos(a) * len * 0.5, topY + Math.sin(a) * len * 0.4, topX, topY + 2 * sc);
+      g.fill();
+    }
+  }
+  function drawScene(t, P) {
+    const g = ug;
+    const sky = g.createLinearGradient(0, 0, 0, HOR);
+    sky.addColorStop(0, P.top); sky.addColorStop(0.62, P.mid); sky.addColorStop(1, P.hor);
+    g.fillStyle = sky; g.fillRect(0, 0, SW, HOR);
+    // striped sun
+    const sx = SW / 2 + Math.sin(t * 0.3) * 8, sy = HOR * 0.6, sr = 64;
+    const sunG = g.createLinearGradient(0, sy - sr, 0, sy + sr);
+    sunG.addColorStop(0, P.sun0); sunG.addColorStop(1, P.sun1);
+    g.save(); g.beginPath(); g.arc(sx, sy, sr, 0, Math.PI * 2); g.clip();
+    g.fillStyle = sunG; g.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+    g.fillStyle = P.mid;
+    for (let y = sy + 4, h = 2; y < sy + sr; y += 8, h += 1) g.fillRect(sx - sr, y + Math.sin(t * 2 + y) * 0.5, sr * 2, h);
+    g.restore();
+    // skyline, drifting back and forth (near layer drifts more)
+    const layer = (city, color, drift, winA) => {
+      for (const b of city) {
+        const x = Math.round(b.x + drift), top = HOR - b.h;
+        g.fillStyle = color; g.fillRect(x, top, b.w, b.h);
+        if (b.spire) g.fillRect(x + (b.w >> 1) - 1, top - 8, 2, 8);
+        g.fillStyle = P.win;
+        for (const [wx, wy, ph] of b.wins) { g.globalAlpha = winA * (0.45 + 0.55 * (Math.sin(t * 1.5 + ph * 40) > -0.6 ? 1 : 0)); g.fillRect(x + wx, top + wy, 2, 2); }
+        g.globalAlpha = 1;
+      }
+    };
+    layer(farCity, P.far, Math.sin(t * 0.25) * 22, 0.55);
+    layer(nearCity, P.near, Math.sin(t * 0.25 + 0.4) * 40, 0.9);
+    PALMS.forEach(([px, sc], i) => drawPalm(g, px + Math.sin(t * 0.25 + 0.4) * 40, HOR, sc, t, i, P.near));
+
+    // compose: sky above the horizon, a squashed rippling reflection below
+    sg2.drawImage(upper, 0, 0);
+    const wh = SH - HOR;
+    const wat = sg2.createLinearGradient(0, HOR, 0, SH);
+    wat.addColorStop(0, P.water); wat.addColorStop(1, '#05030f');
+    sg2.fillStyle = wat; sg2.fillRect(0, HOR, SW, wh);
+    sg2.globalAlpha = 0.55;
+    for (let y = 0; y < wh; y++) {
+      const srcY = HOR - 1 - Math.floor(y / wh * HOR * 0.85);
+      const off = Math.sin(y * 0.45 + t * 3) * (1 + y * 0.04);
+      sg2.drawImage(upper, 0, srcY, SW, 1, off, HOR + y, SW, 1);
+    }
+    sg2.globalAlpha = 1;
+    sg2.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i < 18; i++) { const y = HOR + 3 + ((i * 37 + Math.floor(t * 20)) % wh); sg2.fillRect((i * 97 + Math.sin(t + i) * 30) % SW, y, 10 + (i % 4) * 6, 1); }
+  }
+  function updateScene() {
+    const on = state === 'ready' || state === 'select' || state === 'intro';
+    sceneCv.hidden = !on;
+    document.body.classList.toggle('scene-on', on);
+    if (!on) return;
+    const pal = state === 'ready' ? SCENE_PAL.menu : SCENE_PAL['l' + (levelIdx + 1)] || SCENE_PAL.menu;
+    drawScene(performance.now() / 1000, pal);
+  }
+
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
@@ -3711,6 +3832,7 @@
     placeBall(dt);
     placeCamera(dt);
     renderer.render(scene, camera);
+    updateScene();
     requestAnimationFrame(frame);
   }
 
